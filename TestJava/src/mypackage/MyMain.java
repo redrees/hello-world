@@ -10,9 +10,6 @@ import java.util.Stack;
 public class MyMain {
 
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
-		System.out.println("Hello, World!");
-		System.out.println("Another line!");
 		
 		int[] initial = {
 				2, 3, 7, 4, 5,
@@ -22,29 +19,11 @@ public class MyMain {
 				13, 16, 17, 18, 19
 		};
 		
-		int[] goal = {
-				1, 2, 3, 4, 5,
-				6, -1, 7, -1, 8,
-				9, 10, 0, 11, 12,
-				13, -1, 14, -1, 15,
-				16, 17, 18, 19, 20
-		};
-		
+		// Transform board representation for easier heuristic calculation
 		transformA(initial);
-		transformA(goal);
 		
 		Board i = new Board(initial, 0, null);
-		Board g = new Board(goal, 0, null);
 
-		/*
-		Board t = g.up().up().right().right().down();
-		g.printBoard();
-		System.out.println("h(g) = " + g.getH());
-		t.printBoard();
-		System.out.println("h(t) = " + t.getH());
-		System.out.println("h(i) = " + i.getH());
-		*/
-		
 		PriorityQueue<Board> open = new PriorityQueue<Board>();
 		ArrayList<Board> closed = new ArrayList<Board>();
 		Stack<Board> path = new Stack<Board>();
@@ -52,10 +31,12 @@ public class MyMain {
 		open.add(i);
 		boolean goalFound = false;
 		
+		// A* algorithm to find a solution path
 		while(!open.isEmpty() && !goalFound)
 		{
 			Board current = open.poll();
 			
+			// If at the goal state, record path taken
 			if (current.isGoalState())
 			{
 				path.push(current);
@@ -66,37 +47,37 @@ public class MyMain {
 				}
 				goalFound = true;
 			}
+			// If not at the goal state, process successors
 			else
 			{
 				Board[] nexts = current.getSuccessors();
 				
-				if (nexts != null)
+				for (Board n : nexts)
 				{
-					for (Board n : nexts)
+					// Unvisited successor boards are added to open PQ
+					if (!open.contains(n) && !closed.contains(n))
 					{
-						if (!open.contains(n) && !closed.contains(n))
+						open.add(n);
+					}
+					// If the successor has been visited and has lesser estimate, replace or put it back into open PQ
+					else
+					{
+						Collection<Board> c;
+						
+						if (open.contains(n)) c = open;
+						else c = closed;
+						
+						Iterator<Board> iter = c.iterator();
+						boolean cont = true;
+						while(iter.hasNext() && cont)
 						{
-							open.add(n);
-						}
-						else
-						{
-							Collection<Board> c;
-							
-							if (open.contains(n)) c = open;
-							else c = closed;
-							
-							Iterator<Board> iter = c.iterator();
-							boolean cont = true;
-							while(iter.hasNext() && cont)
+							Board t = iter.next();
+							if(n.equals(t) && n.compareTo(t) < 0)
 							{
-								Board t = iter.next();
-								if(n.equals(t) && n.compareTo(t) < 0)
-								{
-									c.remove(n);
-									open.add(n);
-									
-									cont = false;
-								}
+								c.remove(n);
+								open.add(n);
+								
+								cont = false;
 							}
 						}
 					}
@@ -106,10 +87,14 @@ public class MyMain {
 		
 		int count = 0;
 		
+		// Print all board states along the solution path
 		while (!path.isEmpty())
 		{
 			count++;
 			Board n = path.pop();
+			
+			// Transform the board representation back to what it actually is
+			transformB(n.getBoard());
 			
 			System.out.println("" + count + "th state");
 			n.printBoard();
@@ -130,7 +115,7 @@ public class MyMain {
 	// >13 -> +4
 	// >14 -> +5
 	
-	public static void transformA(int[] a)
+	private static void transformA(int[] a)
 	{
 		for(int i = 0; i < a.length; i++)
 		{
@@ -142,7 +127,7 @@ public class MyMain {
 		}
 	}
 	
-	public static void transformB(int[] a)
+	private static void transformB(int[] a)
 	{
 		for(int i = 0; i < a.length; i++)
 		{
@@ -153,26 +138,15 @@ public class MyMain {
 			if (a[i] > 7) a[i]--;
 		}
 	}
-	
-	public static void printArray(int[] a)
-	{
-		System.out.print("[ ");
-		for(int i = 0; i < a.length; i++)
-		{
-			if(i != 0 && i%5 == 0) System.out.println();
-			System.out.print("" + a[i] + ' ');
-		}
-		System.out.println("]");
-	}
 }
 
 class Board implements Comparable<Board>
 {
 	private int[] board;
-	private int h; // Manhattan distance to goal
+	private int h; // Heuristics to goal (Manhattan distance)
 	private int g; // Actual cost so far
 	private int f; // Estimate from initial to goal
-	private int z;
+	private int z; // Empty space location
 	private Board predecessor;
 	
 	public Board(int[] board, int g, Board predecessor)
@@ -181,6 +155,7 @@ class Board implements Comparable<Board>
 		this.g = g;
 		this.predecessor = predecessor;
 		this.computeH();
+		this.computeF();
 	}
 	
 	private void computeH()
@@ -197,6 +172,10 @@ class Board implements Comparable<Board>
 				z = i;
 			}
 		}
+	}
+	
+	private void computeF()
+	{
 		this.f = this.g + this.h;
 	}
 	
@@ -225,7 +204,7 @@ class Board implements Comparable<Board>
 		return this.predecessor;
 	}
 	
-	public Board up()
+	private Board up()
 	{
 		if (this.z >= 20) return null;
 		if (this.board[z+5] == -1) return null;
@@ -237,7 +216,7 @@ class Board implements Comparable<Board>
 		return new Board(newBoard, this.g + 1, this);
 	}
 	
-	public Board down()
+	private Board down()
 	{
 		if (this.z < 5) return null;
 		if (this.board[this.z-5] == -1) return null;
@@ -249,7 +228,7 @@ class Board implements Comparable<Board>
 		return new Board(newBoard, this.g + 1, this);
 	}
 	
-	public Board left()
+	private Board left()
 	{
 		if (this.z%5 == 4) return null;
 		if (board[this.z+1] == -1) return null;
@@ -261,7 +240,7 @@ class Board implements Comparable<Board>
 		return new Board(newBoard, this.g + 1, this);
 	}
 	
-	public Board right()
+	private Board right()
 	{
 		if (this.z%5 == 0) return null;
 		if (this.board[z-1] == -1) return null;
@@ -303,11 +282,11 @@ class Board implements Comparable<Board>
 	
 	public void printBoard()
 	{
-		System.out.print("[ ");
+		System.out.print("[");
 		for(int i = 0; i < this.board.length; i++)
 		{
-			if(i%5 == 0) System.out.println();
-			System.out.print("" + board[i] + ' ');
+			if(i%5 == 0 && i != 0) System.out.println();
+			System.out.print(" " + board[i]);
 		}
 		System.out.println("]");
 	}
