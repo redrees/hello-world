@@ -1,6 +1,11 @@
 package mypackage;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.PriorityQueue;
+import java.util.Stack;
 
 public class MyMain {
 
@@ -28,17 +33,88 @@ public class MyMain {
 		transformA(initial);
 		transformA(goal);
 		
-		Board i = new Board(initial, 0);
-		Board g = new Board(goal, 0);
-		
+		Board i = new Board(initial, 0, null);
+		Board g = new Board(goal, 0, null);
+
+		/*
 		Board t = g.up().up().right().right().down();
-		
 		g.printBoard();
 		System.out.println("h(g) = " + g.getH());
 		t.printBoard();
 		System.out.println("h(t) = " + t.getH());
 		System.out.println("h(i) = " + i.getH());
+		*/
 		
+		PriorityQueue<Board> open = new PriorityQueue<Board>();
+		ArrayList<Board> closed = new ArrayList<Board>();
+		Stack<Board> path = new Stack<Board>();
+		
+		open.add(i);
+		boolean goalFound = false;
+		
+		while(!open.isEmpty() && !goalFound)
+		{
+			Board current = open.poll();
+			
+			if (current.isGoalState())
+			{
+				path.push(current);
+				Board n = current;
+				while((n=n.getPredecessor()) != null)
+				{
+					path.push(n);
+				}
+				goalFound = true;
+			}
+			else
+			{
+				Board[] nexts = current.getSuccessors();
+				
+				if (nexts != null)
+				{
+					for (Board n : nexts)
+					{
+						if (!open.contains(n) && !closed.contains(n))
+						{
+							open.add(n);
+						}
+						else
+						{
+							Collection<Board> c;
+							
+							if (open.contains(n)) c = open;
+							else c = closed;
+							
+							Iterator<Board> iter = c.iterator();
+							boolean cont = true;
+							while(iter.hasNext() && cont)
+							{
+								Board t = iter.next();
+								if(n.equals(t) && n.compareTo(t) < 0)
+								{
+									c.remove(n);
+									open.add(n);
+									
+									cont = false;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		int count = 0;
+		
+		while (!path.isEmpty())
+		{
+			count++;
+			Board n = path.pop();
+			
+			System.out.println("" + count + "th state");
+			n.printBoard();
+			System.out.println();
+		}
 		
 		/*
 		transformA(goal);
@@ -90,104 +166,175 @@ public class MyMain {
 	}
 }
 
-class Board
+class Board implements Comparable<Board>
 {
 	private int[] board;
 	private int h; // Manhattan distance to goal
 	private int g; // Actual cost so far
 	private int f; // Estimate from initial to goal
 	private int z;
+	private Board predecessor;
 	
-	public Board(int[] board, int g)
+	public Board(int[] board, int g, Board predecessor)
 	{
 		this.board = board;
 		this.g = g;
+		this.predecessor = predecessor;
 		this.computeH();
 	}
 	
 	private void computeH()
 	{
-		h = 0;
-		for(int i = 0; i < board.length; i++)
+		this.h = 0;
+		for(int i = 0; i < this.board.length; i++)
 		{
-			if (board[i] > 0)
+			if (this.board[i] > 0)
 			{
-				h += Math.abs(((board[i]-1)%5) - (i%5)) + Math.abs(board[i] - i - 1)/5;
+				this.h += Math.abs(((this.board[i]-1)%5) - (i%5)) + Math.abs(this.board[i] - i - 1)/5;
 			}
-			else if (board[i] == 0)
+			else if (this.board[i] == 0)
 			{
 				z = i;
 			}
 		}
+		this.f = this.g + this.h;
 	}
 	
 	public int getH()
 	{
-		return h;
+		return this.h;
 	}
 	
 	public int getG()
 	{
-		return g;
+		return this.g;
 	}
 	
 	public int getF()
 	{
-		return f;
+		return this.f;
+	}
+	
+	public int[] getBoard()
+	{
+		return this.board;
+	}
+	
+	public Board getPredecessor()
+	{
+		return this.predecessor;
 	}
 	
 	public Board up()
 	{
-		if (z >= 20) return null;
+		if (this.z >= 20) return null;
+		if (this.board[z+5] == -1) return null;
 		
-		int[] newBoard = Arrays.copyOf(board, board.length);
-		newBoard[z] = newBoard[z+5];
-		newBoard[z+5] = 0;
+		int[] newBoard = Arrays.copyOf(this.board, this.board.length);
+		newBoard[this.z] = newBoard[this.z+5];
+		newBoard[this.z+5] = 0;
 		
-		return new Board(newBoard, this.g + 1);
+		return new Board(newBoard, this.g + 1, this);
 	}
 	
 	public Board down()
 	{
-		if (z < 5) return null;
+		if (this.z < 5) return null;
+		if (this.board[this.z-5] == -1) return null;
 		
-		int[] newBoard = Arrays.copyOf(board, board.length);
-		newBoard[z] = newBoard[z-5];
-		newBoard[z-5] = 0;
+		int[] newBoard = Arrays.copyOf(this.board, this.board.length);
+		newBoard[this.z] = newBoard[this.z-5];
+		newBoard[this.z-5] = 0;
 		
-		return new Board(newBoard, this.g + 1);
+		return new Board(newBoard, this.g + 1, this);
 	}
 	
 	public Board left()
 	{
-		if (z%5 == 4) return null;
+		if (this.z%5 == 4) return null;
+		if (board[this.z+1] == -1) return null;
 		
-		int[] newBoard = Arrays.copyOf(board, board.length);
-		newBoard[z] = newBoard[z+1];
-		newBoard[z+1] = 0;
+		int[] newBoard = Arrays.copyOf(this.board, this.board.length);
+		newBoard[this.z] = newBoard[this.z+1];
+		newBoard[this.z+1] = 0;
 		
-		return new Board(newBoard, this.g + 1);
+		return new Board(newBoard, this.g + 1, this);
 	}
 	
 	public Board right()
 	{
-		if (z%5 == 0) return null;
+		if (this.z%5 == 0) return null;
+		if (this.board[z-1] == -1) return null;
 		
-		int[] newBoard = Arrays.copyOf(board, board.length);
-		newBoard[z] = newBoard[z-1];
-		newBoard[z-1] = 0;
+		int[] newBoard = Arrays.copyOf(this.board, this.board.length);
+		newBoard[this.z] = newBoard[this.z-1];
+		newBoard[this.z-1] = 0;
 		
-		return new Board(newBoard, this.g + 1);
+		return new Board(newBoard, this.g + 1, this);
+	}
+	
+	public Board[] getSuccessors()
+	{
+		Board[] r;
+		int count = 0;
+		
+		Board up = this.up();
+		Board down = this.down();
+		Board left = this.left();
+		Board right = this.right();
+		
+		if (up != null) count++;
+		if (down != null) count++;
+		if (left != null) count++;
+		if (right != null) count++;
+		
+		if (count == 0) return null;
+		
+		r = new Board[count];
+		count = 0;
+		
+		if (up != null) r[count++] = up;
+		if (down != null) r[count++] = down;
+		if (left != null) r[count++] = left;
+		if (right != null) r[count++] = right;
+		
+		return r;
 	}
 	
 	public void printBoard()
 	{
 		System.out.print("[ ");
-		for(int i = 0; i < board.length; i++)
+		for(int i = 0; i < this.board.length; i++)
 		{
 			if(i%5 == 0) System.out.println();
 			System.out.print("" + board[i] + ' ');
 		}
 		System.out.println("]");
+	}
+	
+	public boolean isGoalState()
+	{
+		if (h != 0) return false;
+		
+		return true;
+	}
+	
+	public int compareTo(Board c) throws IllegalArgumentException
+	{
+		if (c == null) throw new IllegalArgumentException("Board can't be compared to null");
+		
+		if (this.f > c.getF()) return 1;
+		if (this.f < c.getF()) return -1;
+		
+		return 0;
+	}
+	
+	@Override
+	public boolean equals(Object o) throws IllegalArgumentException
+	{
+		if (o == null) throw new IllegalArgumentException("Board can't be compared to null");
+		if (!(o instanceof Board)) return false;
+		
+		return Arrays.equals(this.board, ((Board)o).getBoard());
 	}
 }
