@@ -1,4 +1,4 @@
 # hello-world
 
-[] test task list
-[x] test completed task
+- [] test task list
+- [x] test completed task
